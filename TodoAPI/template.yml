@@ -1,0 +1,50 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This stack deploys the todoapi ECS service and its associated infrastructure
+
+##################################
+Parameters:
+##################################
+  ProjectName:
+    Type: String
+    Default: 'TodoAPI'
+  RepoUri:
+    Type: String
+
+##################################
+Resources:
+##################################
+  TodoAPITaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: TodoAPITaskRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ecs-tasks.amazonaws.com
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: TodoAPITaskExecutionPolicy
+          PolicyDocument:
+            Statement:
+            - Effect: Allow
+              Action:
+                # Allow the ECS Tasks to download images from ECR
+                - 'ecr:GetAuthorizationToken'
+                - 'ecr:BatchCheckLayerAvailability'
+                - 'ecr:GetDownloadUrlForLayer'
+                - 'ecr:BatchGetImage'
+
+                # Allow the ECS tasks to upload logs to CloudWatch
+                - 'logs:CreateLogStream'
+                - 'logs:CreateLogGroup'
+                - 'logs:PutLogEvents'
+              Resource: '*'
+      Tags:
+        - Key: project
+          Value: !Ref ProjectName
+        - Key: repo
+          Value: !Ref RepoUri
