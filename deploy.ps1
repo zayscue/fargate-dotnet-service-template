@@ -29,13 +29,15 @@ function Deploy {
         $projectName,
         $repoUri,
         $image,
-        $tag = "latest"
+        $tag = "latest",
+        $templateFile
     )
 
     docker build -t $image -f "$($projectName)/Dockerfile" .
     docker tag "$($image):$($tag)" "$($repoUri):$($tag)"
     aws ecr get-login-password --region $awsRegion | docker login --username AWS --password-stdin "$($awsAccount).dkr.ecr.$($awsRegion).amazonaws.com"
     docker push "$($repoUri):$($tag)"
+    aws cloudformation deploy --template-file $templateFile --stack-name todoapi --parameter-overrides RepoUri=$repoUri --capabilities CAPABILITY_NAMED_IAM
 }
 
 # Setting the default aws account and region
@@ -77,8 +79,13 @@ $projects = Get-Content 'TodoService.sln' |
 
 # Deploying each of the projects in the solution
 foreach ($project in $projects) {
-    Write-Output "Ensuring that the container repository for the $($project.Name) project exists..."
-    $repoInfo = Ensure-Repository-Exists -project $project
-    Write-Output "Deploying $($project.Name)..."
-    Deploy -awsAccount $defaultAWSAccount -awsRegion $defaultAWSRegion -projectName $project.Name -repoUri $repoInfo.repositoryUri -image $project.Name.ToLower()
+    if ($project.Name -ne 'Solution Items') {
+        Write-Output "Ensuring that the container repository for the $($project.Name) project exists..."
+        $repoInfo = Ensure-Repository-Exists -project $project
+        Write-Output "Deploying $($project.Name)..."
+        $templateFileRelativePath = ".\$($project.File.Substring(0, $project.File.LastIndexOf('\')))\template.yml"
+        $fileInfo = Get-ItemProperty -Path $templateFileRelativePath
+        $templateFileAbsolutePath = "$($fileInfo.DirectoryName)\$($fileInfo.Name)"
+        Deploy -awsAccount $defaultAWSAccount -awsRegion $defaultAWSRegion -projectName $project.Name -repoUri $repoInfo.repositoryUri -image $project.Name.ToLower() -templateFile $templateFileAbsolutePath
+    }
 }
