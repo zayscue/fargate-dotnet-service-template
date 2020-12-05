@@ -4,14 +4,14 @@ param (
     [string]$region
 )
 
-function Ensure-Repository-Exists {
+function Confirm-Repository-Exists {
     param (
         $project
     )
 
     $repo = $project.Name.ToLower()
     $repoInfo = aws ecr describe-repositories --repository-names $repo 2>$null
-    if (!$repoInfo) { 
+    if (!$repoInfo) {
 	    $repoInfo = aws ecr create-repository --repository-name $repo
 	    $repoInfo = $repoInfo | ConvertFrom-Json
 	    $repoInfo = $repoInfo.repository
@@ -81,7 +81,7 @@ $projects = Get-Content 'TodoService.sln' |
 foreach ($project in $projects) {
     if ($project.Name -ne 'Solution Items') {
         Write-Output "Ensuring that the container repository for the $($project.Name) project exists..."
-        $repoInfo = Ensure-Repository-Exists -project $project
+        $repoInfo = Confirm-Repository-Exists -project $project
         Write-Output "Deploying $($project.Name)..."
         $templateFileRelativePath = ".\$($project.File.Substring(0, $project.File.LastIndexOf('\')))\template.yml"
         $fileInfo = Get-ItemProperty -Path $templateFileRelativePath
